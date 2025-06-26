@@ -1,47 +1,57 @@
 import os
 import pandas as pd
-import numpy as np
-import faiss
-import openai
 import streamlit as st
+import chromadb
+from chromadb.utils import embedding_functions
+import openai
 
 # ── CONFIG ───────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
-INDEX_FILE  = 'crm_index.faiss'
 CSV_FILE    = 'Master_Personal_CRM_Clay.csv'
+CHROMA_DIR  = './chroma_db'    # local folder for Chroma persistence
 MODEL       = 'text-embedding-ada-002'
-TOP_K       = 10
 
-# ── LOAD DATA & INDEX ─────────────────────────────────
-@st.cache_data
-def load_data():
-    df = pd.read_csv(CSV_FILE)
-    index = faiss.read_index(INDEX_FILE)
-    return df, index
+# ── INITIALIZE CHROMA DB ─────────────────────────────
+client = chromadb.Client(
+    persist_directory=CHROMA_DIR
+)
 
-df, index = load_data()
+# Create or load a collection called "crm"
+if "crm" in [c.name for c in client.list_collections()]:
+    collection = client.get_collection("crm")
+else:
+    collection = client.create_collection("crm")
 
-st.title("CRM Vector Search")
-st.write("Enter a natural-language query and see the top matches:")
+# ── BUILD INDEX IF EMPTY ─────────────────────────────
+if collection.count() == 0:
+    st.info("Building vector index… this may take a minute.")
+    df = pd.read_csv(CSV_FILE).astype(str)
+    texts = df.agg(" | ".join, axis=1).tolist()
 
-# ── USER INPUT ────────────────────────────────────────
-query = st.text_input("🔍 Search", placeholder="e.g. ‘marketing agencies in tech’")
-k     = st.slider("Number of results", min_value=1, max_value=20, value=5)
+    ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
+    collection.add(
+        documents=texts,
+        embeddings=ef(texts),
+        metadatas=df.to_dict(orient="records"),
+        ids=[str(i) for i in range(len(texts))]
+    )
+    collection.persist()
+    st.success("Index built!")
+
+# ── STREAMLIT UI ─────────────────────────────────────
+st.title("CRM Vector Search (ChromaDB)")
+query = st.text_input("Enter your query:", "")
+k     = st.slider("Number of results:", 1, 20, 5)
 
 if st.button("Search") and query:
-    # 1) embed the query
-    with st.spinner("Embedding query…"):
-        resp = openai.embeddings.create(model=MODEL, input=[query])
-        q_vec = np.array(resp.data[0].embedding, dtype='float32').reshape(1, -1)
-
-    # 2) search the FAISS index
-    with st.spinner("Searching index…"):
-        D, I = index.search(q_vec, k)
-
-    # 3) collect results
-    results = df.iloc[I[0]].copy()
-    results["Score"] = D[0]
-
-    # 4) display
-    st.success(f"Found {len(results)} results:")
-    st.dataframe(results.reset_index(drop=True))
+    ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
+    results = collection.query(
+        query_texts=[query],
+        n_results=k,
+        include=["metadatas", "distances"]
+    )
+    rows   = results["metadatas"][0]
+    scores = results["distances"][0]
+    df_out = pd.DataFrame(rows)
+    df_out["Score"] = scores
+    st.dataframe(df_out)
