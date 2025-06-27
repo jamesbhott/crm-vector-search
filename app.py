@@ -1,47 +1,50 @@
 import os
 import streamlit as st
 import pandas as pd
+import openai
 from llama_index import SimpleDirectoryReader, VectorStoreIndex, ServiceContext
-from llama_index.llms import OpenAI
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
 
-# ── CONFIG ────────────────────────────────
-st.set_page_config(page_title="CRM GPT Search", layout="wide")
-os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+# ── SETUP ────────────────────────────────────────────────
 
-DATA_FILE = "Master_Personal_CRM_Clay.csv"
+# Read API key securely
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# ── SETUP LLM CONTEXT ─────────────────────
-llm = OpenAI(temperature=0, model="gpt-3.5-turbo")
-service_context = ServiceContext.from_defaults(llm=llm)
+# Optional: Show title
+st.title("CRM Smart Search with LlamaIndex")
 
-# ── LOAD DATA ─────────────────────────────
-@st.cache_data(show_spinner="Loading data...")
-def load_data():
-    df = pd.read_csv(DATA_FILE).astype(str)
-    lines = df.apply(lambda row: " | ".join(row.values), axis=1).tolist()
-    return df, lines
+# Load your CSV
+csv_file = "Master_Personal_CRM_Clay.csv"
+df = pd.read_csv(csv_file).astype(str)
 
-df, lines = load_data()
+# ── EMBEDDING & INDEX SETUP ──────────────────────────────
 
-# ── BUILD INDEX ───────────────────────────
-@st.cache_resource(show_spinner="Building search index...")
-def build_index():
-    docs = [f"{line}" for line in lines]
-    with open("crm_docs.txt", "w") as f:
-        f.write("\n".join(docs))
-    reader = SimpleDirectoryReader(input_files=["crm_docs.txt"])
-    index = VectorStoreIndex.from_documents(reader.load_data(), service_context=service_context)
-    return index
+# Combine row data for embedding
+documents = df.agg(" | ".join, axis=1).tolist()
 
-index = build_index()
-query_engine = index.as_query_engine()
+# Set up embedding function and service context
+embed_model = OpenAIEmbedding(model="text-embedding-ada-002", api_key=openai.api_key)
+service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
-# ── STREAMLIT UI ──────────────────────────
-st.title("CRM GPT Search")
+# Build index
+index = VectorStoreIndex.from_documents(
+    documents=[{"text": doc, "metadata": {"row": i}} for i, doc in enumerate(documents)],
+    service_context=service_context
+)
 
-query = st.text_input("Ask a question about your contacts:")
+# ── UI INTERACTION ──────────────────────────────────────
 
-if st.button("Run Search") and query:
-    with st.spinner("Thinking..."):
-        response = query_engine.query(query)
-    st.write(response)
+query = st.text_input("Ask a question about your CRM:")
+k = st.slider("Number of results:", 1, 20, 5)
+
+if st.button("Search") and query:
+    results = index.as_query_engine().query(query)
+    
+    # Basic display
+    st.write("**Results:**")
+    for res in results.sources[:k]:
+        row_index = res.metadata.get("row", None)
+        if row_index is not None:
+            st.write(df.iloc[int(row_index)])
+        st.write("---")
