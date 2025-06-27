@@ -9,18 +9,17 @@ import openai
 # ── CONFIG ───────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
 CSV_FILE    = 'Master_Personal_CRM_Clay.csv'
-# Use DuckDB + Parquet for persistence (no sqlite3 issues)
-CHROMA_DIR  = './chroma_db'
+CHROMA_DIR  = './chroma_db'    # local folder for persistence
 MODEL       = 'text-embedding-ada-002'
 
-# ── INITIALIZE CHROMA DB ─────────────────────────────
+# ── INITIALIZE CHROMA DB WITH DUCKDB+PARQUET ─────────
 settings = Settings(
     chroma_db_impl="duckdb+parquet",
     persist_directory=CHROMA_DIR
 )
 client = chromadb.Client(settings=settings)
 
-# Get or create a collection called "crm"
+# Get or create the "crm" collection
 if "crm" in [c.name for c in client.list_collections()]:
     collection = client.get_collection("crm")
 else:
@@ -30,7 +29,6 @@ else:
 if collection.count() == 0:
     st.info("Building vector index… this may take a minute.")
     df = pd.read_csv(CSV_FILE).astype(str)
-    # concatenate all columns into one text per row
     texts = df.agg(" | ".join, axis=1).tolist()
 
     ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
