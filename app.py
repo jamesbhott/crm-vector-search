@@ -1,9 +1,13 @@
-import pysqlite3                     # preload a modern sqlite binding
+# ── MONKEY-PATCH SQLITE VERSION ───────────────────────
+import sqlite3
+sqlite3.sqlite_version_info = (3, 35, 0)
+sqlite3.sqlite_version = "3.35.0"
+
+# ── STANDARD IMPORTS ─────────────────────────────────
 import os
 import pandas as pd
 import streamlit as st
 
-# ── CHROMADB IMPORTS ─────────────────────────────────
 from chromadb import Client
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -13,10 +17,10 @@ import openai
 # ── CONFIG ───────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
 CSV_FILE       = 'Master_Personal_CRM_Clay.csv'
-CHROMA_DIR     = './chroma_db'    # DuckDB+Parquet store here
+CHROMA_DIR     = './chroma_db'
 MODEL          = 'text-embedding-ada-002'
 
-# ── INITIALIZE CHROMA CLIENT WITH DUCKDB+PARQUET ────
+# ── INITIALIZE CHROMA WITH DUCKDB+PARQUET ───────────
 settings = Settings(
     chroma_db_impl="duckdb+parquet",
     persist_directory=CHROMA_DIR
@@ -33,7 +37,7 @@ else:
 # ── BUILD INDEX IF EMPTY ─────────────────────────────
 if collection.count() == 0:
     st.info("Building vector index… this may take a minute.")
-    df = pd.read_csv(CSV_FILE).astype(str)
+    df    = pd.read_csv(CSV_FILE).astype(str)
     texts = df.agg(" | ".join, axis=1).tolist()
 
     ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
