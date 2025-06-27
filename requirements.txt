@@ -1,7 +1,10 @@
-wheels/chroma_hnswlib-0.7.2-cp310-cp310-manylinux_2_17_x86_64.whl
-chromadb==0.4.4
+streamlit==1.25.0
+openai==1.91.0
+
+# Explicitly pull in hnswlib 0.7.5 (manylinux wheel available)
+chroma-hnswlib==0.7.5
+chromadb==0.5.4
+
 pandas==2.1.2
 numpy==1.25.1
 pillow>=9.5.0,<10
-streamlit==1.25.0
-openai==1.91.0
