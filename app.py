@@ -2,21 +2,25 @@ import os
 import pandas as pd
 import streamlit as st
 import chromadb
+from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 import openai
 
 # ── CONFIG ───────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
 CSV_FILE    = 'Master_Personal_CRM_Clay.csv'
-CHROMA_DIR  = './chroma_db'    # local folder for Chroma persistence
+# Use DuckDB + Parquet for persistence (no sqlite3 issues)
+CHROMA_DIR  = './chroma_db'
 MODEL       = 'text-embedding-ada-002'
 
 # ── INITIALIZE CHROMA DB ─────────────────────────────
-client = chromadb.Client(
+settings = Settings(
+    chroma_db_impl="duckdb+parquet",
     persist_directory=CHROMA_DIR
 )
+client = chromadb.Client(settings=settings)
 
-# Create or load a collection called "crm"
+# Get or create a collection called "crm"
 if "crm" in [c.name for c in client.list_collections()]:
     collection = client.get_collection("crm")
 else:
@@ -26,6 +30,7 @@ else:
 if collection.count() == 0:
     st.info("Building vector index… this may take a minute.")
     df = pd.read_csv(CSV_FILE).astype(str)
+    # concatenate all columns into one text per row
     texts = df.agg(" | ".join, axis=1).tolist()
 
     ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
@@ -39,12 +44,12 @@ if collection.count() == 0:
     st.success("Index built!")
 
 # ── STREAMLIT UI ─────────────────────────────────────
-st.title("CRM Vector Search (ChromaDB)")
+st.title("CRM Vector Search (ChromaDB + DuckDB)")
 query = st.text_input("Enter your query:", "")
 k     = st.slider("Number of results:", 1, 20, 5)
 
 if st.button("Search") and query:
-    ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
+    ef      = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
     results = collection.query(
         query_texts=[query],
         n_results=k,
