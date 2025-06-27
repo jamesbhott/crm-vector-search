@@ -1,9 +1,8 @@
+pysqlite3‐binary==0.5.4
 streamlit==1.25.0
 openai==1.91.0
-
 chromadb==1.0.13
 duckdb==0.7.1
-
 pandas==2.1.2
 numpy==1.25.1
 pillow>=9.5.0,<10
