@@ -1,50 +1,52 @@
 import os
 import streamlit as st
 import pandas as pd
-import openai
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, ServiceContext
+from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
+import openai
 
-# ── SETUP ────────────────────────────────────────────────
+# ── CONFIG ───────────────────────────────────────────
+openai.api_key = os.getenv("OPENAI_API_KEY")
+DATA_FILE = "Master_Personal_CRM_Clay.csv"
 
-# Read API key securely
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# ── BUILD INDEX ──────────────────────────────────────
+st.title("CRM LlamaIndex Search")
 
-# Optional: Show title
-st.title("CRM Smart Search with LlamaIndex")
+if not os.path.exists(DATA_FILE):
+    st.error(f"{DATA_FILE} not found.")
+    st.stop()
 
-# Load your CSV
-csv_file = "Master_Personal_CRM_Clay.csv"
-df = pd.read_csv(csv_file).astype(str)
+st.info("Loading and indexing data…")
+df = pd.read_csv(DATA_FILE).astype(str)
+text_data = df.apply(lambda row: " | ".join(row.values), axis=1).tolist()
 
-# ── EMBEDDING & INDEX SETUP ──────────────────────────────
-
-# Combine row data for embedding
-documents = df.agg(" | ".join, axis=1).tolist()
-
-# Set up embedding function and service context
-embed_model = OpenAIEmbedding(model="text-embedding-ada-002", api_key=openai.api_key)
-service_context = ServiceContext.from_defaults(embed_model=embed_model)
+# Save text lines to a temp file for ingestion
+temp_dir = ".temp_docs"
+os.makedirs(temp_dir, exist_ok=True)
+temp_path = os.path.join(temp_dir, "data.txt")
+with open(temp_path, "w") as f:
+    for line in text_data:
+        f.write(line + "\n")
 
 # Build index
-index = VectorStoreIndex.from_documents(
-    documents=[{"text": doc, "metadata": {"row": i}} for i, doc in enumerate(documents)],
-    service_context=service_context
+reader = SimpleDirectoryReader(temp_dir)
+documents = reader.load_data()
+service_context = ServiceContext.from_defaults(
+    embed_model=OpenAIEmbedding(model="text-embedding-ada-002", api_key=openai.api_key),
+    llm=OpenAI(temperature=0, model="gpt-3.5-turbo", api_key=openai.api_key)
 )
+index = VectorStoreIndex.from_documents(documents, service_context=service_context)
+query_engine = index.as_query_engine()
 
-# ── UI INTERACTION ──────────────────────────────────────
+st.success("Index ready!")
 
-query = st.text_input("Ask a question about your CRM:")
-k = st.slider("Number of results:", 1, 20, 5)
-
+# ── SEARCH UI ────────────────────────────────────────
+query = st.text_input("Ask a question about your CRM:", "")
 if st.button("Search") and query:
-    results = index.as_query_engine().query(query)
-    
-    # Basic display
-    st.write("**Results:**")
-    for res in results.sources[:k]:
-        row_index = res.metadata.get("row", None)
-        if row_index is not None:
-            st.write(df.iloc[int(row_index)])
-        st.write("---")
+    response = query_engine.query(query)
+    st.write(response)
+
+# ── CLEANUP ──────────────────────────────────────────
+import shutil
+shutil.rmtree(temp_dir, ignore_errors=True)
