@@ -1,10 +1,13 @@
-import pysqlite3  # preload a modern sqlite binding before chromadb imports
+import pysqlite3                     # preload a modern sqlite binding
 import os
 import pandas as pd
 import streamlit as st
-import chromadb
+
+# ── CHROMADB IMPORTS ─────────────────────────────────
+from chromadb import Client
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
+
 import openai
 
 # ── CONFIG ───────────────────────────────────────────
@@ -18,7 +21,7 @@ settings = Settings(
     chroma_db_impl="duckdb+parquet",
     persist_directory=CHROMA_DIR
 )
-client = chromadb.Client(settings=settings)
+client = Client(settings=settings)
 
 # ── GET OR CREATE COLLECTION ─────────────────────────
 names = [c.name for c in client.list_collections()]
