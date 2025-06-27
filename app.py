@@ -15,6 +15,7 @@ EMB_MODEL      = "text-embedding-ada-002"
 BATCH_SIZE     = 500
 DIM            = 1536
 
+# ── INDEX BUILDING HELPERS ────────────────────────────
 def build_index():
     df = pd.read_csv(CSV_FILE).astype(str)
     texts = df.agg(" | ".join, axis=1).tolist()
@@ -23,7 +24,7 @@ def build_index():
     for i in range(0, len(texts), BATCH_SIZE):
         batch = texts[i : i + BATCH_SIZE]
         resp  = openai.embeddings.create(model=EMB_MODEL, input=batch)
-        embeddings.extend([d["embedding"] for d in resp["data"]])
+        embeddings.extend([d.embedding for d in resp.data])
 
     X = np.array(embeddings, dtype="float32")
     index = faiss.IndexFlatL2(DIM)
@@ -43,7 +44,7 @@ def load_index():
         data = pickle.load(f)
     return index, data
 
-# ── LOAD OR BUILD ─────────────────────────────────────
+# ── LOAD OR BUILD INDEX ───────────────────────────────
 if os.path.exists(INDEX_FILE) and os.path.exists(DATA_FILE):
     index, records = load_index()
 else:
@@ -53,13 +54,13 @@ else:
 
 # ── STREAMLIT UI ───────────────────────────────────────
 st.title("CRM Vector Search (FAISS)")
+
 query = st.text_input("Enter your query:")
 k     = st.slider("Number of results:", 1, 20, 5)
 
 if st.button("Search") and query:
-    # NEW v1 interface for query embedding
-    qb = openai.embeddings.create(model=EMB_MODEL, input=[query])
-    q_emb = np.array(qb["data"][0]["embedding"], dtype="float32").reshape(1, -1)
+    resp   = openai.embeddings.create(model=EMB_MODEL, input=[query])
+    q_emb  = np.array(resp.data[0].embedding, dtype="float32").reshape(1, -1)
 
     D, I = index.search(q_emb, k)
     results = []
