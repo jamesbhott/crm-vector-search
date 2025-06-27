@@ -1,72 +1,35 @@
 import os
-import pickle
 import pandas as pd
 import streamlit as st
-import numpy as np
+from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, ServiceContext
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms import OpenAI
 import faiss
-import openai
 
-# ── CONFIG ─────────────────────────────────────────────
+# ── SETUP ──────────────────────────────────────
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-CSV_FILE       = "Master_Personal_CRM_Clay.csv"
-INDEX_FILE     = "faiss_index.pkl"
-DATA_FILE      = "faiss_data.pkl"
-EMB_MODEL      = "text-embedding-ada-002"
-BATCH_SIZE     = 500
-DIM            = 1536
+CSV_FILE = 'Master_Personal_CRM_Clay.csv'
 
-# ── INDEX BUILDING HELPERS ────────────────────────────
-def build_index():
-    df = pd.read_csv(CSV_FILE).astype(str)
-    texts = df.agg(" | ".join, axis=1).tolist()
+st.title("CRM Vector Search (FAISS + LlamaIndex)")
 
-    embeddings = []
-    for i in range(0, len(texts), BATCH_SIZE):
-        batch = texts[i : i + BATCH_SIZE]
-        resp  = openai.embeddings.create(model=EMB_MODEL, input=batch)
-        embeddings.extend([d.embedding for d in resp.data])
+# ── DATA PREP ──────────────────────────────────
+df = pd.read_csv(CSV_FILE).astype(str)
+docs = df.apply(lambda row: " | ".join(row), axis=1).tolist()
 
-    X = np.array(embeddings, dtype="float32")
-    index = faiss.IndexFlatL2(DIM)
-    index.add(X)
+# ── INDEX BUILD ────────────────────────────────
+embed_model = OpenAIEmbedding(api_key=openai.api_key)
+llm = OpenAI(api_key=openai.api_key)
 
-    with open(INDEX_FILE, "wb") as f:
-        pickle.dump(index, f)
-    with open(DATA_FILE, "wb") as f:
-        pickle.dump(df.to_dict(orient="records"), f)
+service_context = ServiceContext.from_defaults(llm=llm, embed_model=embed_model)
+index = GPTVectorStoreIndex.from_documents(
+    [SimpleDirectoryReader(input_files=[CSV_FILE]).load_data()],
+    service_context=service_context
+)
 
-    return index, df.to_dict(orient="records")
+# ── SEARCH ─────────────────────────────────────
+query = st.text_input("Ask a question or describe what you want:")
 
-def load_index():
-    with open(INDEX_FILE, "rb") as f:
-        index = pickle.load(f)
-    with open(DATA_FILE, "rb") as f:
-        data = pickle.load(f)
-    return index, data
-
-# ── LOAD OR BUILD INDEX ───────────────────────────────
-if os.path.exists(INDEX_FILE) and os.path.exists(DATA_FILE):
-    index, records = load_index()
-else:
-    st.info("Building FAISS index… one-time operation")
-    index, records = build_index()
-    st.success("Index built!")
-
-# ── STREAMLIT UI ───────────────────────────────────────
-st.title("CRM Vector Search (FAISS)")
-
-query = st.text_input("Enter your query:")
-k     = st.slider("Number of results:", 1, 20, 5)
-
-if st.button("Search") and query:
-    resp   = openai.embeddings.create(model=EMB_MODEL, input=[query])
-    q_emb  = np.array(resp.data[0].embedding, dtype="float32").reshape(1, -1)
-
-    D, I = index.search(q_emb, k)
-    results = []
-    for dist, idx in zip(D[0], I[0]):
-        rec = records[idx].copy()
-        rec["Score"] = float(dist)
-        results.append(rec)
-
-    st.dataframe(pd.DataFrame(results))
+if query:
+    chat_engine = index.as_chat_engine()
+    response = chat_engine.chat(query)
+    st.write(response.response)

@@ -1,6 +1,5 @@
-streamlit==1.25.0
-openai==1.91.0
-faiss-cpu==1.7.3
-pandas==2.1.2
-numpy==1.25.1
-pickle5==0.0.12
+streamlit
+pandas
+openai
+llama-index
+faiss-cpu
