@@ -1,3 +1,4 @@
+import pysqlite3  # preload a modern sqlite binding before chromadb imports
 import os
 import pandas as pd
 import streamlit as st
@@ -7,10 +8,10 @@ from chromadb.utils import embedding_functions
 import openai
 
 # ── CONFIG ───────────────────────────────────────────
-openai.api_key    = os.getenv("OPENAI_API_KEY")
-CSV_FILE          = 'Master_Personal_CRM_Clay.csv'
-CHROMA_DIR        = './chroma_db'    # DuckDB+Parquet store here
-MODEL             = 'text-embedding-ada-002'
+openai.api_key = os.getenv("OPENAI_API_KEY")
+CSV_FILE       = 'Master_Personal_CRM_Clay.csv'
+CHROMA_DIR     = './chroma_db'    # DuckDB+Parquet store here
+MODEL          = 'text-embedding-ada-002'
 
 # ── INITIALIZE CHROMA CLIENT WITH DUCKDB+PARQUET ────
 settings = Settings(
