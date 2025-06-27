@@ -30,6 +30,5 @@ jobs:
 
       - name: Verify wheel availability
         run: |
-          grep -E '^(streamlit|openai|chroma-hnswlib|chromadb|pandas|numpy|pillow)' requirements.txt \
-            > wheel_requirements.txt
+          grep -E '^(streamlit|openai|chromadb|pypika|pandas|numpy|pillow)' requirements.txt \
           pip download --only-binary=:all: --dest wheelhouse -r wheel_requirements.txt
