@@ -1,6 +1,14 @@
 streamlit==1.25.0
 openai==1.91.0
-chromadb==0.4.4
+
+# Pre-built hnswlib wheel for Python 3.10/3.11
+chroma-hnswlib==0.7.5
+
+# Last 0.x ChromaDB release that pins to hnswlib 0.7.5 and has no PyPika dependency
+chromadb==0.5.4
+
 pandas==2.1.2
 numpy==1.25.1
+
+# Pillow 9.x wheel support
 pillow>=9.5.0,<10
