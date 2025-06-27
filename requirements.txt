@@ -1,5 +1,4 @@
-streamlit
+streamlit==1.25.0
+openai==0.28
+llama-index==0.10.30
 pandas
-openai
-llama-index
-faiss-cpu

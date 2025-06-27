@@ -1,35 +1,47 @@
 import os
-import pandas as pd
 import streamlit as st
-from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, ServiceContext
-from llama_index.embeddings.openai import OpenAIEmbedding
+import pandas as pd
+from llama_index import SimpleDirectoryReader, VectorStoreIndex, ServiceContext
 from llama_index.llms import OpenAI
-import faiss
 
-# ── SETUP ──────────────────────────────────────
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-CSV_FILE = 'Master_Personal_CRM_Clay.csv'
+# ── CONFIG ────────────────────────────────
+st.set_page_config(page_title="CRM GPT Search", layout="wide")
+os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
-st.title("CRM Vector Search (FAISS + LlamaIndex)")
+DATA_FILE = "Master_Personal_CRM_Clay.csv"
 
-# ── DATA PREP ──────────────────────────────────
-df = pd.read_csv(CSV_FILE).astype(str)
-docs = df.apply(lambda row: " | ".join(row), axis=1).tolist()
+# ── SETUP LLM CONTEXT ─────────────────────
+llm = OpenAI(temperature=0, model="gpt-3.5-turbo")
+service_context = ServiceContext.from_defaults(llm=llm)
 
-# ── INDEX BUILD ────────────────────────────────
-embed_model = OpenAIEmbedding(api_key=openai.api_key)
-llm = OpenAI(api_key=openai.api_key)
+# ── LOAD DATA ─────────────────────────────
+@st.cache_data(show_spinner="Loading data...")
+def load_data():
+    df = pd.read_csv(DATA_FILE).astype(str)
+    lines = df.apply(lambda row: " | ".join(row.values), axis=1).tolist()
+    return df, lines
 
-service_context = ServiceContext.from_defaults(llm=llm, embed_model=embed_model)
-index = GPTVectorStoreIndex.from_documents(
-    [SimpleDirectoryReader(input_files=[CSV_FILE]).load_data()],
-    service_context=service_context
-)
+df, lines = load_data()
 
-# ── SEARCH ─────────────────────────────────────
-query = st.text_input("Ask a question or describe what you want:")
+# ── BUILD INDEX ───────────────────────────
+@st.cache_resource(show_spinner="Building search index...")
+def build_index():
+    docs = [f"{line}" for line in lines]
+    with open("crm_docs.txt", "w") as f:
+        f.write("\n".join(docs))
+    reader = SimpleDirectoryReader(input_files=["crm_docs.txt"])
+    index = VectorStoreIndex.from_documents(reader.load_data(), service_context=service_context)
+    return index
 
-if query:
-    chat_engine = index.as_chat_engine()
-    response = chat_engine.chat(query)
-    st.write(response.response)
+index = build_index()
+query_engine = index.as_query_engine()
+
+# ── STREAMLIT UI ──────────────────────────
+st.title("CRM GPT Search")
+
+query = st.text_input("Ask a question about your contacts:")
+
+if st.button("Run Search") and query:
+    with st.spinner("Thinking..."):
+        response = query_engine.query(query)
+    st.write(response)
