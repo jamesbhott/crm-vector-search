@@ -22,8 +22,8 @@ def build_index():
     embeddings = []
     for i in range(0, len(texts), BATCH_SIZE):
         batch = texts[i : i + BATCH_SIZE]
-        resp  = openai.Embedding.create(model=EMB_MODEL, input=batch)
-        embeddings.extend([d.embedding for d in resp.data])
+        resp  = openai.embeddings.create(model=EMB_MODEL, input=batch)
+        embeddings.extend([d["embedding"] for d in resp["data"]])
 
     X = np.array(embeddings, dtype="float32")
     index = faiss.IndexFlatL2(DIM)
@@ -57,10 +57,9 @@ query = st.text_input("Enter your query:")
 k     = st.slider("Number of results:", 1, 20, 5)
 
 if st.button("Search") and query:
-    q_emb = np.array(
-        openai.Embedding.create(model=EMB_MODEL, input=[query]).data[0].embedding,
-        dtype="float32",
-    ).reshape(1, -1)
+    # NEW v1 interface for query embedding
+    qb = openai.embeddings.create(model=EMB_MODEL, input=[query])
+    q_emb = np.array(qb["data"][0]["embedding"], dtype="float32").reshape(1, -1)
 
     D, I = index.search(q_emb, k)
     results = []
