@@ -1,8 +1,7 @@
 streamlit==1.25.0
 openai==1.91.0
 
-# Use DuckDB instead of SQLite for persistence
-chromadb==0.4.4
+chromadb==1.0.13
 duckdb==0.7.1
 
 pandas==2.1.2

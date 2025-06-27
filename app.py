@@ -9,7 +9,7 @@ import openai
 # ── CONFIG ───────────────────────────────────────────
 openai.api_key = os.getenv("OPENAI_API_KEY")
 CSV_FILE    = 'Master_Personal_CRM_Clay.csv'
-CHROMA_DIR  = './chroma_db'    # local folder for persistence
+CHROMA_DIR  = './chroma_db'
 MODEL       = 'text-embedding-ada-002'
 
 # ── INITIALIZE CHROMA DB WITH DUCKDB+PARQUET ─────────
@@ -19,7 +19,7 @@ settings = Settings(
 )
 client = chromadb.Client(settings=settings)
 
-# Get or create the "crm" collection
+# Get or create the collection
 if "crm" in [c.name for c in client.list_collections()]:
     collection = client.get_collection("crm")
 else:
