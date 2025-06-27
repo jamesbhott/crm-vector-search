@@ -1,4 +1,4 @@
-./wheels/chroma_hnswlib-0.7.2-cp310-cp310-manylinux*.whl
+wheels/chroma_hnswlib-0.7.2-cp310-cp310-manylinux_2_17_x86_64.whl
 chromadb==0.4.4
 pandas==2.1.2
 numpy==1.25.1
