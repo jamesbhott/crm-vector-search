@@ -9,7 +9,7 @@ import openai
 # ── CONFIG ───────────────────────────────────────────
 openai.api_key    = os.getenv("OPENAI_API_KEY")
 CSV_FILE          = 'Master_Personal_CRM_Clay.csv'
-CHROMA_DIR        = './chroma_db'    # where DuckDB will store parquet files
+CHROMA_DIR        = './chroma_db'    # DuckDB+Parquet store here
 MODEL             = 'text-embedding-ada-002'
 
 # ── INITIALIZE CHROMA CLIENT WITH DUCKDB+PARQUET ────
@@ -19,8 +19,9 @@ settings = Settings(
 )
 client = chromadb.Client(settings=settings)
 
-# Get or create the collection
-if "crm" in [c.name for c in client.list_collections()]:
+# ── GET OR CREATE COLLECTION ─────────────────────────
+names = [c.name for c in client.list_collections()]
+if "crm" in names:
     collection = client.get_collection("crm")
 else:
     collection = client.create_collection("crm")
@@ -42,8 +43,8 @@ if collection.count() == 0:
     st.success("Index built!")
 
 # ── STREAMLIT UI ─────────────────────────────────────
-st.title("CRM Vector Search (ChromaDB + DuckDB)")
-query = st.text_input("Enter your query:", "")
+st.title("CRM Vector Search (DuckDB+Parquet)")
+query = st.text_input("Enter your query:")
 k     = st.slider("Number of results:", 1, 20, 5)
 
 if st.button("Search") and query:
