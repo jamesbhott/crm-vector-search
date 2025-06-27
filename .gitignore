@@ -1,1 +1,5 @@
-chroma_db/
+nltk_data/
+storage/
+__pycache__/
+*.pyc
+*.pkl
