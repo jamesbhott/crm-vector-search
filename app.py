@@ -7,7 +7,7 @@ import faiss
 import openai
 
 # ── CONFIG ─────────────────────────────────────────────
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 CSV_FILE       = "Master_Personal_CRM_Clay.csv"
 INDEX_FILE     = "faiss_index.pkl"
 DATA_FILE      = "faiss_data.pkl"
