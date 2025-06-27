@@ -7,12 +7,12 @@ from chromadb.utils import embedding_functions
 import openai
 
 # ── CONFIG ───────────────────────────────────────────
-openai.api_key = os.getenv("OPENAI_API_KEY")
-CSV_FILE    = 'Master_Personal_CRM_Clay.csv'
-CHROMA_DIR  = './chroma_db'
-MODEL       = 'text-embedding-ada-002'
+openai.api_key    = os.getenv("OPENAI_API_KEY")
+CSV_FILE          = 'Master_Personal_CRM_Clay.csv'
+CHROMA_DIR        = './chroma_db'    # where DuckDB will store parquet files
+MODEL             = 'text-embedding-ada-002'
 
-# ── INITIALIZE CHROMA DB WITH DUCKDB+PARQUET ─────────
+# ── INITIALIZE CHROMA CLIENT WITH DUCKDB+PARQUET ────
 settings = Settings(
     chroma_db_impl="duckdb+parquet",
     persist_directory=CHROMA_DIR
