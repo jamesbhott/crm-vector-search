@@ -1,9 +1,4 @@
-# ── MONKEY-PATCH SQLITE VERSION ───────────────────────
-import sqlite3
-sqlite3.sqlite_version_info = (3, 35, 0)
-sqlite3.sqlite_version = "3.35.0"
-
-# ── STANDARD IMPORTS ─────────────────────────────────
+import pysqlite3                    # ensure modern sqlite before anything else
 import os
 import pandas as pd
 import streamlit as st
@@ -11,7 +6,6 @@ import streamlit as st
 from chromadb import Client
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
-
 import openai
 
 # ── CONFIG ───────────────────────────────────────────
@@ -20,27 +14,24 @@ CSV_FILE       = 'Master_Personal_CRM_Clay.csv'
 CHROMA_DIR     = './chroma_db'
 MODEL          = 'text-embedding-ada-002'
 
-# ── INITIALIZE CHROMA WITH DUCKDB+PARQUET ───────────
+# ── INITIALIZE CLIENT WITH NEW API ────────────────────
 settings = Settings(
-    chroma_db_impl="duckdb+parquet",
+    database_impl="duckdb+parquet",
     persist_directory=CHROMA_DIR
 )
 client = Client(settings=settings)
 
 # ── GET OR CREATE COLLECTION ─────────────────────────
 names = [c.name for c in client.list_collections()]
-if "crm" in names:
-    collection = client.get_collection("crm")
-else:
-    collection = client.create_collection("crm")
+collection = client.get_collection("crm") if "crm" in names else client.create_collection("crm")
 
 # ── BUILD INDEX IF EMPTY ─────────────────────────────
 if collection.count() == 0:
     st.info("Building vector index… this may take a minute.")
     df    = pd.read_csv(CSV_FILE).astype(str)
     texts = df.agg(" | ".join, axis=1).tolist()
+    ef    = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
 
-    ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai.api_key)
     collection.add(
         documents=texts,
         embeddings=ef(texts),
@@ -51,7 +42,7 @@ if collection.count() == 0:
     st.success("Index built!")
 
 # ── STREAMLIT UI ─────────────────────────────────────
-st.title("CRM Vector Search (DuckDB+Parquet)")
+st.title("CRM Vector Search (ChromaDB + DuckDB)")
 query = st.text_input("Enter your query:")
 k     = st.slider("Number of results:", 1, 20, 5)
 
