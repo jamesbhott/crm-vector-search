@@ -2,7 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 import openai
-from llama_index import SimpleDirectoryReader, VectorStoreIndex, ServiceContext
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, ServiceContext
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 
