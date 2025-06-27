@@ -1,10 +1,12 @@
 streamlit==1.25.0
 openai==1.91.0
 
-# Explicitly pull in hnswlib 0.7.5 (manylinux wheel available)
-chroma-hnswlib==0.7.5
-chromadb==0.5.4
+# Use the latest stable ChromaDB which pulls in PyPika as a dependency
+chromadb==1.0.13
+pypika==0.48.9
 
 pandas==2.1.2
 numpy==1.25.1
+
+# Pillow 9.x has wheels for 3.10/3.11
 pillow>=9.5.0,<10
